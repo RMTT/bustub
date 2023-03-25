@@ -14,13 +14,16 @@
 
 #include <limits>
 #include <list>
+#include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <unordered_map>
-#include <vector>
 
+#include <iostream>
 #include "common/config.h"
 #include "common/macros.h"
 
+#define INF -1
 namespace bustub {
 
 /**
@@ -77,7 +80,6 @@ class LRUKReplacer {
    *
    * @brief Record the event that the given frame id is accessed at current timestamp.
    * Create a new entry for access history if frame id has not been seen before.
-   *
    * If frame id is invalid (ie. larger than replacer_size_), throw an exception. You can
    * also use BUSTUB_ASSERT to abort the process if frame id is invalid.
    *
@@ -135,11 +137,38 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] size_t current_timestamp_{0};
+
+  std::unordered_map<frame_id_t, std::list<long>> frames;
+  std::chrono::microseconds current_timestamp_{0};
   [[maybe_unused]] size_t curr_size_{0};
   [[maybe_unused]] size_t replacer_size_;
   [[maybe_unused]] size_t k_;
   std::mutex latch_;
+
+  inline long now() {
+    auto t = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::microseconds>(t.time_since_epoch()).count();
+  }
+
+  class CMP {
+   public:
+    CMP(std::unordered_map<frame_id_t, std::list<long>> &frames) : frames(frames) {}
+    bool operator()(const frame_id_t &lf, const frame_id_t &rf) const {
+      long min_l = frames[lf].back(), min_r = frames[rf].back();
+
+      if (min_l == INF && min_r == INF) {
+        for (auto p = frames[lf].begin(); *p != INF; p++) min_l = *p;
+
+        for (auto p = frames[rf].begin(); *p != INF; p++) min_r = *p;
+      }
+
+      return min_l < min_r;
+    }
+
+   private:
+    std::unordered_map<frame_id_t, std::list<long>> &frames;
+  };
+  std::unique_ptr<std::set<frame_id_t, CMP>> evictableFrames;
 };
 
 }  // namespace bustub
