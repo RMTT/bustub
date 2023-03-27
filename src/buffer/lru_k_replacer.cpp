@@ -15,7 +15,7 @@
 namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
-  evictableFrames = std::make_unique<std::set<frame_id_t, CMP>>(std::set<frame_id_t, CMP>(CMP(frames)));
+  evictableFrames = std::make_unique<std::set<frame_id_t, CMP>>(CMP(frames));
 }
 
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
