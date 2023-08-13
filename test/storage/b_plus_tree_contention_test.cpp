@@ -25,7 +25,7 @@ bool BPlusTreeLockBenchmarkCall(size_t num_threads, int leaf_node_size, bool wit
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
   auto *disk_manager = new DiskManagerMemory(256 << 10);  // 1GB
-  BufferPoolManager *bpm = new BufferPoolManagerInstance(64, disk_manager);
+  BufferPoolManager *bpm = new BufferPoolManagerInstance(6400, disk_manager);
   // create b+ tree
   BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, leaf_node_size, 10);
   // create and fetch header_page
@@ -74,7 +74,7 @@ bool BPlusTreeLockBenchmarkCall(size_t num_threads, int leaf_node_size, bool wit
   return success;
 }
 
-TEST(BPlusTreeTest, DISABLED_BPlusTreeContentionBenchmark) {  // NOLINT
+TEST(BPlusTreeTest, BPlusTreeContentionBenchmark) {  // NOLINT
   std::vector<size_t> time_ms_with_mutex;
   std::vector<size_t> time_ms_wo_mutex;
   for (size_t iter = 0; iter < 20; iter++) {

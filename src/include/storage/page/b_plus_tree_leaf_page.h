@@ -49,6 +49,13 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto ValueAt(int index) const -> ValueType;
+  void Remove(const KeyType &key, const KeyComparator &comparator);
+  void SetKeyValueAt(int index, const KeyType &key, const ValueType &value);
+  auto MappingAt(int index) -> const MappingType &;
+  auto Search(const KeyType &key, ValueType *result, const KeyComparator &comparator) -> bool;
+  // return true if this page is full after insert
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
 
  private:
   page_id_t next_page_id_;

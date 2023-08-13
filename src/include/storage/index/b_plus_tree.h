@@ -18,6 +18,7 @@
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 
@@ -45,11 +46,17 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto FindLeaf(const KeyType &key) -> LeafPage *;
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  auto InsertInLeaf(LeafPage *node, const KeyType &key, const ValueType &value) -> bool;
+  auto InsertInParent(BPlusTreePage *left_node, const KeyType &key, BPlusTreePage *right_node) -> bool;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
+
+  void RemoveEntry(BPlusTreePage *node, const KeyType &key);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
@@ -77,6 +84,8 @@ class BPlusTree {
  private:
   void UpdateRootPageId(int insert_record = 0);
 
+  auto GetParentPageId(BPlusTreePage *node) -> page_id_t;
+
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
@@ -87,6 +96,7 @@ class BPlusTree {
   page_id_t root_page_id_;
   BufferPoolManager *buffer_pool_manager_;
   KeyComparator comparator_;
+  std::shared_mutex insert_latch_;
   int leaf_max_size_;
   int internal_max_size_;
 };

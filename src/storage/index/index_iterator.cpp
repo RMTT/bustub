@@ -2,6 +2,7 @@
  * index_iterator.cpp
  */
 #include <cassert>
+#include <utility>
 
 #include "storage/index/index_iterator.h"
 
@@ -12,19 +13,40 @@ namespace bustub {
  * set your own input parameters
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator() = default;
+INDEXITERATOR_TYPE::IndexIterator(page_id_t leaf_page_id, int page_index, BufferPoolManager *bpm)
+    : page_index_(page_index), cur_page_id_(leaf_page_id), buffer_pool_manager_(bpm) {
+  cur_page_ = reinterpret_cast<LeafPage *>(this->buffer_pool_manager_->FetchPage(leaf_page_id)->GetData());
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
+INDEXITERATOR_TYPE::~IndexIterator() { this->buffer_pool_manager_->UnpinPage(cur_page_id_, true); };  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::IsEnd() -> bool {
+  return page_index_ == cur_page_->GetSize() && cur_page_->GetNextPageId() == -1;
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return cur_page_->MappingAt(page_index_); }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & { throw std::runtime_error("unimplemented"); }
+auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
+  page_index_++;
+  if (page_index_ == cur_page_->GetSize()) {
+    auto next_page_id = cur_page_->GetNextPageId();
+
+    if (next_page_id != -1) {
+      buffer_pool_manager_->UnpinPage(cur_page_id_, false);
+
+      cur_page_id_ = next_page_id;
+      cur_page_ = reinterpret_cast<LeafPage *>(this->buffer_pool_manager_->FetchPage(cur_page_id_)->GetData());
+
+      page_index_ = 0;
+    }
+  }
+
+  return *this;
+}
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 
