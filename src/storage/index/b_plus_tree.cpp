@@ -66,6 +66,9 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   bool exists;
   ValueType value;
 
+  if (IsEmpty()) {
+    return false;
+  }
   Page *cur_page = buffer_pool_manager_->FetchPage(root_page_id_);
   cur_page->RLatch();
 
@@ -563,6 +566,9 @@ void BPLUSTREE_TYPE::RemoveEntry(BPlusTreePage *node, const KeyType &key) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  if (IsEmpty()) {
+    return INDEXITERATOR_TYPE(INVALID_PAGE_ID, 0, this->buffer_pool_manager_);
+  }
   auto *node = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
 
   while (!node->IsLeafPage()) {
@@ -582,6 +588,10 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  if (IsEmpty()) {
+    return INDEXITERATOR_TYPE(INVALID_PAGE_ID, 0, this->buffer_pool_manager_);
+  }
+
   LeafPage *leaf = FindLeaf(key);
   int index = 0;
 
@@ -603,6 +613,9 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  if (IsEmpty()) {
+    return INDEXITERATOR_TYPE(INVALID_PAGE_ID, 0, this->buffer_pool_manager_);
+  }
   auto *node = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
 
   while (!node->IsLeafPage()) {

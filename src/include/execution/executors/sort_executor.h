@@ -20,6 +20,7 @@
 #include "execution/plans/seq_scan_plan.h"
 #include "execution/plans/sort_plan.h"
 #include "storage/table/tuple.h"
+#include "type/value.h"
 
 namespace bustub {
 
@@ -49,8 +50,21 @@ class SortExecutor : public AbstractExecutor {
   /** @return The output schema for the sort */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
+  class Cmp {
+   public:
+    explicit Cmp(const SortPlanNode &plan);
+    auto operator()(Tuple &a, Tuple &b) -> bool;
+
+   private:
+    const SortPlanNode &plan_;
+    Schema schema_;
+  };
+
  private:
   /** The sort plan node to be executed */
   const SortPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<Tuple> tuples_;
+  std::vector<Tuple>::iterator iter_;
 };
 }  // namespace bustub

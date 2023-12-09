@@ -12,7 +12,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "execution/executor_context.h"
@@ -22,6 +24,16 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
+
+class Cmp {
+ public:
+  explicit Cmp(const TopNPlanNode &plan);
+  auto operator()(Tuple &a, Tuple &b) -> bool;
+
+ private:
+  const TopNPlanNode &plan_;
+  Schema schema_;
+};
 
 /**
  * The TopNExecutor executor executes a topn.
@@ -52,5 +64,8 @@ class TopNExecutor : public AbstractExecutor {
  private:
   /** The topn plan node to be executed */
   const TopNPlanNode *plan_;
+  const std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<Tuple> tuples_;
+  size_t count_ = 0;
 };
 }  // namespace bustub

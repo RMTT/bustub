@@ -10,13 +10,30 @@
 //
 //===----------------------------------------------------------------------===//
 #include "execution/executors/index_scan_executor.h"
+#include "storage/index/b_plus_tree_index.h"
 
 namespace bustub {
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      tree_(dynamic_cast<BPlusTreeIndexForOneIntegerColumn *>(
+          exec_ctx_->GetCatalog()->GetIndex(this->plan_->index_oid_)->index_.get())),
+      iter_(tree_->GetBeginIterator()) {}
 
-void IndexScanExecutor::Init() { throw NotImplementedException("IndexScanExecutor is not implemented"); }
+void IndexScanExecutor::Init() { iter_ = tree_->GetBeginIterator(); }
 
-auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  if (iter_.IsEnd()) {
+    return false;
+  }
+  RID id = (*iter_).second;
+
+  *rid = id;
+  auto table_info = exec_ctx_->GetCatalog()->GetTable(tree_->GetMetadata()->GetTableName());
+  table_info->table_->GetTuple(id, tuple, exec_ctx_->GetTransaction());
+
+  ++iter_;
+  return true;
+}
 
 }  // namespace bustub
