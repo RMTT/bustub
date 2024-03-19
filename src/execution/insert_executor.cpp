@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "catalog/column.h"
+#include "concurrency/transaction.h"
 #include "execution/executors/insert_executor.h"
 #include "storage/table/tuple.h"
 #include "type/type_id.h"
@@ -29,6 +30,10 @@ void InsertExecutor::Init() {
   auto table_info = this->exec_ctx_->GetCatalog()->GetTable(this->plan_->table_oid_);
   this->indexes_ = exec_ctx_->GetCatalog()->GetTableIndexes(table_info->name_);
   this->table_info_ = table_info;
+  if (!exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE,
+                                              table_info->oid_)) {
+    throw std::exception();
+  }
   child_executor_->Init();
 }
 
@@ -46,6 +51,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (this->child_executor_->Next(&value_tuple, &id)) {
     RID tmp_id;
     if (this->table_info_->table_->InsertTuple(value_tuple, &tmp_id, this->exec_ctx_->GetTransaction())) {
+      if (!exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE,
+                                                plan_->table_oid_, tmp_id)) {
+        throw std::exception();
+      }
+      auto write_set = exec_ctx_->GetTransaction()->GetWriteSet();
+      write_set->emplace_back(tmp_id, WType::INSERT, value_tuple, table_info_->table_.release());
       count++;
       for (auto index : this->indexes_) {
         Schema key_schema = index->key_schema_;
@@ -65,7 +76,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   Schema output_schema = this->plan_->OutputSchema();
   std::vector<Value> values;
-  values.emplace_back(Value(INTEGER, count));
+  values.emplace_back(INTEGER, count);
   *tuple = Tuple(values, &output_schema);
   inserted_ = true;
   return true;

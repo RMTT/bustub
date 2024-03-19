@@ -24,6 +24,10 @@ void DeleteExecutor::Init() {
   auto table_info = this->exec_ctx_->GetCatalog()->GetTable(this->plan_->table_oid_);
   this->indexes_ = exec_ctx_->GetCatalog()->GetTableIndexes(table_info->name_);
   this->table_info_ = table_info;
+  if (!exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE,
+                                              table_info->oid_)) {
+    throw std::exception();
+  }
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
@@ -39,6 +43,12 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   child_executor_->Init();
   Schema delete_schema = child_executor_->GetOutputSchema();
   while (this->child_executor_->Next(&delete_tuple, &id)) {
+    if (!exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE,
+                                              plan_->table_oid_, id)) {
+      throw std::exception();
+    }
+    auto write_set = exec_ctx_->GetTransaction()->GetWriteSet();
+    write_set->emplace_back(id, WType::INSERT, delete_tuple, table_info_->table_.release());
     if (this->table_info_->table_->MarkDelete(id, this->exec_ctx_->GetTransaction())) {
       count++;
       for (auto index : this->indexes_) {

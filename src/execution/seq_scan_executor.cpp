@@ -12,7 +12,9 @@
 
 #include "execution/executors/seq_scan_executor.h"
 #include <cstdio>
+#include <exception>
 #include "common/rid.h"
+#include "concurrency/transaction.h"
 #include "pg_definitions.hpp"
 #include "storage/table/table_heap.h"
 #include "storage/table/table_iterator.h"
@@ -29,6 +31,12 @@ void SeqScanExecutor::Init() {
   auto table_info = this->exec_ctx_->GetCatalog()->GetTable(this->plan_->GetTableOid());
   Assert(table_info != Catalog::NULL_TABLE_INFO);
 
+  if (!(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED)) {
+    if (!exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_SHARED,
+                                                table_info->oid_)) {
+      throw std::exception();
+    }
+  }
   this->heap_ = table_info->table_.get();
   this->iter_ = this->heap_->Begin(this->exec_ctx_->GetTransaction());
 }
@@ -41,11 +49,16 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   Schema output_schema = this->plan_->OutputSchema();
 
   std::vector<Value> values;
+  *rid = this->iter_->GetRid();
+
+  if (!exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::SHARED,
+                                            plan_->table_oid_, *rid)) {
+    throw std::exception();
+  }
   for (unsigned int i = 0; i < output_schema.GetColumnCount(); ++i) {
     values.push_back(this->iter_->GetValue(&output_schema, i));
   }
 
-  *rid = this->iter_->GetRid();
   *tuple = Tuple(values, &output_schema);
 
   ++this->iter_;

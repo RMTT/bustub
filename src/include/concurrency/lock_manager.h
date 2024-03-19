@@ -17,6 +17,7 @@
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -286,6 +287,9 @@ class LockManager {
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
   auto HasCycle(txn_id_t *txn_id) -> bool;
+
+  auto CheckCycle(txn_id_t current, std::unordered_map<txn_id_t, int> &state, std::vector<txn_id_t> &previous)
+      -> txn_id_t;
 
   /**
    * @return all edges in current waits_for graph
